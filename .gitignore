@@ -1,4 +1,6 @@
 Data Files/**
 Cache/**
+Token/
+.env
 *.exe
 *.pyc

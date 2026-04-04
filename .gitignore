@@ -1,6 +1,9 @@
 Data Files/**
 Cache/**
 Token/
+System/system.py
 .env
+.claude/
 *.exe
 *.pyc
+__pycache__/

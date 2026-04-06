@@ -27,6 +27,75 @@ logging.basicConfig(
 )
 log = logging.getLogger("snoo")
 
+# --- Dependency check / auto-fix ---
+def _parse_version(v: str) -> tuple[int, ...]:
+    try:
+        return tuple(int(x) for x in v.split(".")[:3])
+    except ValueError:
+        return (0,)
+
+
+def _ensure_dependencies() -> None:
+    """Detect known missing/incompatible packages and offer to auto-fix before startup."""
+    from importlib.metadata import version as pkg_version, PackageNotFoundError
+    import subprocess
+
+    issues: list[str] = []
+    fixes: list[str] = []
+
+    # discord.py >=2.7.1 — required for Discord's DAVE voice E2EE protocol (close code 4017)
+    try:
+        dpy = _parse_version(pkg_version("discord.py"))
+        if dpy < (2, 7, 1):
+            issues.append(
+                f"discord.py {'.'.join(str(x) for x in dpy)} is too old "
+                "(need >=2.7.1 for voice/DAVE support — fixes WebSocket close code 4017)"
+            )
+            fixes.append("discord.py>=2.7.1")
+    except PackageNotFoundError:
+        issues.append("discord.py is not installed")
+        fixes.append("discord.py>=2.7.1")
+
+    # davey — required for Discord's DAVE E2EE voice handshake
+    try:
+        pkg_version("davey")
+    except PackageNotFoundError:
+        issues.append(
+            "davey is not installed "
+            "(required for Discord voice E2EE/DAVE protocol — fixes WebSocket close code 4017)"
+        )
+        fixes.append("davey")
+
+    if not issues:
+        return
+
+    print("\nDependency issues detected:")
+    for issue in issues:
+        print(f"  - {issue}")
+
+    try:
+        answer = input("\nFix automatically? [Y/n]: ").strip().lower()
+    except EOFError:
+        answer = "y"
+
+    if answer in ("", "y", "yes"):
+        print(f"Running: pip install {' '.join(fixes)}")
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install"] + fixes,
+            text=True,
+        )
+        if result.returncode == 0:
+            print("Done. Restarting...\n")
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        else:
+            print(f"pip install failed. Fix manually:\n  pip install {' '.join(fixes)}")
+            sys.exit(1)
+    else:
+        print("Skipping. Voice connections may fail.\n")
+
+
+_ensure_dependencies()
+
 # --- FFmpeg check / auto-install ---
 def _find_ffmpeg_in_winget() -> str | None:
     """Search common winget install locations for ffmpeg.exe."""
@@ -43,35 +112,49 @@ def _find_ffmpeg_in_winget() -> str | None:
     return None
 
 
-def _ensure_ffmpeg() -> None:
-    if shutil.which("ffmpeg"):
-        log.info("FFmpeg found at: %s", shutil.which("ffmpeg"))
-        return
+def _test_ffmpeg(ffmpeg_path: str) -> bool:
+    """Verify FFmpeg can decode audio. Returns True if working."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            [ffmpeg_path, "-hide_banner", "-loglevel", "quiet",
+             "-f", "lavfi", "-i", "sine=frequency=440:duration=0.1",
+             "-f", "null", "-"],
+            capture_output=True, timeout=15,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
 
-    # Check if winget already installed it but PATH wasn't refreshed
-    found_dir = _find_ffmpeg_in_winget()
-    if found_dir:
-        os.environ["PATH"] = found_dir + os.pathsep + os.environ.get("PATH", "")
-        log.info("FFmpeg found at %s (added to PATH for this session)", found_dir)
-        return
 
-    log.warning("ffmpeg not found. Installing via winget in the background...")
+def _install_ffmpeg_winget() -> None:
+    """Install (or reinstall) FFmpeg via winget in a background thread."""
     import subprocess
     import threading
 
     def _install() -> None:
+        log.info("Installing FFmpeg via winget...")
         try:
+            # Uninstall first so winget doesn't skip a "already installed" check
+            subprocess.run(
+                ["winget", "uninstall", "Gyan.FFmpeg",
+                 "--accept-source-agreements"],
+                capture_output=True, text=True, timeout=120,
+            )
             result = subprocess.run(
                 ["winget", "install", "Gyan.FFmpeg",
                  "--accept-package-agreements", "--accept-source-agreements"],
                 capture_output=True, text=True, timeout=300,
             )
             if result.returncode == 0:
-                # Add to PATH for this session immediately
                 found = _find_ffmpeg_in_winget()
                 if found:
                     os.environ["PATH"] = found + os.pathsep + os.environ.get("PATH", "")
-                    log.info("FFmpeg installed and added to PATH. Music is ready.")
+                    ffmpeg = shutil.which("ffmpeg")
+                    if ffmpeg and _test_ffmpeg(ffmpeg):
+                        log.info("FFmpeg reinstalled and verified. Music is ready.")
+                    else:
+                        log.warning("FFmpeg installed but audio test still failed. Try restarting.")
                 else:
                     log.info("FFmpeg installed. Restart the bot for music to work.")
             else:
@@ -84,6 +167,40 @@ def _ensure_ffmpeg() -> None:
             log.error("FFmpeg install error: %s", e)
 
     threading.Thread(target=_install, daemon=True).start()
+
+
+def _ensure_ffmpeg() -> None:
+    # Locate FFmpeg (check PATH first, then winget install dirs)
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        found_dir = _find_ffmpeg_in_winget()
+        if found_dir:
+            os.environ["PATH"] = found_dir + os.pathsep + os.environ.get("PATH", "")
+            ffmpeg = shutil.which("ffmpeg")
+
+    if ffmpeg:
+        if _test_ffmpeg(ffmpeg):
+            log.info("FFmpeg found and verified at: %s", ffmpeg)
+            return
+        # Found but audio test failed — broken install
+        log.warning("FFmpeg at %s failed audio test (broken install or missing codecs).", ffmpeg)
+        print(f"\nFFmpeg was found at {ffmpeg} but failed the audio capability test.")
+        print("This usually means the binary is corrupted or missing codec support.")
+    else:
+        print("\nFFmpeg was not found.")
+
+    print("Music will not work without a working FFmpeg.")
+    try:
+        answer = input("Reinstall automatically via winget? [Y/n]: ").strip().lower()
+    except EOFError:
+        answer = "y"
+
+    if answer in ("", "y", "yes"):
+        _install_ffmpeg_winget()
+        print("Reinstalling FFmpeg in the background. Music may not work until complete.\n")
+    else:
+        print("Skipping FFmpeg install. Music commands will not work.\n")
+
 
 _ensure_ffmpeg()
 

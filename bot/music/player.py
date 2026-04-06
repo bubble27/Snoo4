@@ -90,7 +90,12 @@ class GuildPlayer:
                 stderr=sys.stderr,
                 **FFMPEG_OPTIONS,
             )
-            self.voice.play(source)
+
+            def _after(error: Exception | None) -> None:
+                if error:
+                    log.error("FFmpeg playback error: %s", error)
+
+            self.voice.play(source, after=_after)
             self.refetch_tried = False
             return True
         except Exception as e:

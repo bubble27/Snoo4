@@ -23,8 +23,11 @@ log = logging.getLogger(__name__)
 
 YDL_OPTIONS = {"format": "bestaudio/best", "noplaylist": True, "quiet": True, "no_warnings": True}
 
-# Shared thread pool for parallel I/O work
-_pool = ThreadPoolExecutor(max_workers=4)
+# Shared thread pool for parallel I/O work (8 workers for playlist batch fetching)
+_pool = ThreadPoolExecutor(max_workers=8)
+
+
+CACHE_MAX_AGE = 6 * 3600  # evict cache entries after 6 hours (matches YouTube audio URL expiry)
 
 
 class YouTubeService:
@@ -32,6 +35,18 @@ class YouTubeService:
 
     def __init__(self) -> None:
         self.cache: dict[str, dict] = {}
+
+    def evict_stale(self) -> None:
+        """Remove cache entries older than CACHE_MAX_AGE seconds."""
+        now = datetime.now().timestamp()
+        stale = [
+            vid_id for vid_id, entry in self.cache.items()
+            if now - entry.get("_cached_at", 0) > CACHE_MAX_AGE
+        ]
+        for vid_id in stale:
+            del self.cache[vid_id]
+        if stale:
+            log.info("Evicted %d stale cache entries", len(stale))
 
     def fetch_info(
         self,
@@ -69,6 +84,7 @@ class YouTubeService:
 
         # Build entry with metadata from yt_dlp
         entry = self._build_metadata(video_id, vid, audio_url)
+        entry["_cached_at"] = datetime.now().timestamp()
 
         # Start palette extraction in parallel while we wait for related videos
         thumb = entry["thumbnail"]
@@ -138,21 +154,25 @@ class YouTubeService:
 
         return entry
 
-    def search(self, query: str) -> str | None:
+    def search(self, query: str, disliked: set[str] | None = None) -> str | None:
         query_string = urlencode({"search_query": query})
         try:
             html = urlopen(f"http://www.youtube.com/results?{query_string}").read().decode()
             results = findall(r"watch\?v=(\S{11})", html)
-            return results[0] if results else None
+            blocked = disliked or set()
+            for vid_id in results:
+                if vid_id not in blocked:
+                    return vid_id
+            return None
         except Exception:
             log.warning("YouTube search failed for: %s", query)
             return None
 
-    def search_and_fetch(self, query: str) -> str | None:
+    def search_and_fetch(self, query: str, disliked: set[str] | None = None) -> str | None:
         if self.verify_id(query):
             video_id = query
         else:
-            video_id = self.search(query)
+            video_id = self.search(query, disliked)
             if video_id is None:
                 return None
         if not self.fetch_info(video_id):
@@ -168,14 +188,40 @@ class YouTubeService:
         except Exception:
             return False
 
-    def find_autoplay(self, player: GuildPlayer) -> bool:
+    def fetch_playlist(self, playlist_url: str) -> list[str]:
+        """Extract video IDs from a YouTube playlist URL using yt_dlp (fast, flat extraction)."""
+        opts = {"quiet": True, "no_warnings": True, "extract_flat": True, "flat_playlist": True}
+        try:
+            with YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(playlist_url, download=False)
+            entries = info.get("entries") or []
+            ids = [e["id"] for e in entries if e and e.get("id")]
+            log.info("Extracted %d videos from playlist", len(ids))
+            return ids
+        except Exception as e:
+            log.warning("Failed to extract playlist %s: %s", playlist_url, e)
+            return []
+
+    def fetch_many(self, video_ids: list[str]) -> list[str]:
+        """Fetch info for multiple videos concurrently. Returns IDs in original order."""
+        futures = [(vid, _pool.submit(self.fetch_info, vid)) for vid in video_ids]
+        fetched = []
+        for vid, future in futures:
+            try:
+                if future.result(timeout=30):
+                    fetched.append(vid)
+            except Exception:
+                log.warning("Failed to fetch info for %s", vid)
+        return fetched
+
+    def find_autoplay(self, player: GuildPlayer, disliked: set[str] | None = None) -> bool:
         """Find autoplay based on all songs in queue + history for balanced selection."""
         all_songs = list(player.past_queue) + list(player.queue)
         if not all_songs:
             return False
 
+        blocked = set(player.past_queue) | set(player.queue) | (disliked or set())
         candidates = Counter()
-        already_played = set(player.past_queue) | set(player.queue)
 
         for song_id in all_songs:
             if song_id not in self.cache:
@@ -186,7 +232,7 @@ class YouTubeService:
                 if recs:
                     self.cache[song_id]["recomended_vids"] = recs
             for rec_id in recs:
-                if rec_id not in already_played:
+                if rec_id not in blocked:
                     candidates[rec_id] += 1
 
         if not candidates:
@@ -194,7 +240,7 @@ class YouTubeService:
             if current:
                 recs = _scrape_related(current)
                 for rec_id in recs:
-                    if rec_id not in already_played:
+                    if rec_id not in blocked:
                         candidates[rec_id] += 1
 
         for rec_id, _ in candidates.most_common():

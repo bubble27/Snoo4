@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from math import fsum
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import discord
@@ -23,6 +23,69 @@ class ProfileCog(commands.Cog):
     def __init__(self, bot: commands.Bot, data: DataManager) -> None:
         self.bot = bot
         self.data = data
+        # Tracks when each user joined VC: {(guild_id, user_id): datetime}
+        self._vc_joins: dict[tuple[int, int], datetime] = {}
+
+    # --- VC time tracking ---
+
+    def _scan_existing_vc_users(self) -> None:
+        """Record join times for users already in VC when the bot starts."""
+        now = datetime.now()
+        count = 0
+        for guild in self.bot.guilds:
+            for vc in guild.voice_channels:
+                for member in vc.members:
+                    if member.bot:
+                        continue
+                    key = (guild.id, member.id)
+                    if key not in self._vc_joins:
+                        self._vc_joins[key] = now
+                        count += 1
+        if count:
+            log.info("Backfilled %d users already in VC", count)
+
+    @commands.Cog.listener()
+    async def on_ready(self) -> None:
+        self._scan_existing_vc_users()
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(
+        self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState,
+    ) -> None:
+        if member.bot:
+            return
+
+        key = (member.guild.id, member.id)
+        was_in_vc = before.channel is not None
+        now_in_vc = after.channel is not None
+
+        if not was_in_vc and now_in_vc:
+            self._vc_joins[key] = datetime.now()
+        elif was_in_vc and not now_in_vc:
+            self._flush_user(key)
+
+    def _flush_user(self, key: tuple[int, int]) -> None:
+        join_time = self._vc_joins.pop(key, None)
+        if join_time is None:
+            return
+        guild_id, user_id = key
+        hours = (datetime.now() - join_time).total_seconds() / 3600
+        if hours < 0.001:
+            return
+        self.data.add_vc_time(guild_id, user_id, hours)
+
+    def flush_all(self) -> None:
+        """Flush all active VC sessions. Re-records join times so sessions continue."""
+        now = datetime.now()
+        for key in list(self._vc_joins):
+            join_time = self._vc_joins[key]
+            guild_id, user_id = key
+            hours = (now - join_time).total_seconds() / 3600
+            if hours >= 0.001:
+                self.data.add_vc_time(guild_id, user_id, hours)
+            self._vc_joins[key] = now
+
+    # --- Message tracking ---
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -30,20 +93,10 @@ class ProfileCog(commands.Cog):
             return
 
         guild_id = message.guild.id
-        channel_id = message.channel.id
 
-        # Track channel message count
-        channels = self.data.channel_messages
-        if guild_id not in channels:
-            channels[guild_id] = {}
-        if channel_id not in channels[guild_id]:
-            channels[guild_id][channel_id] = [1]
-        else:
-            channels[guild_id][channel_id][-1] += 1
-
-        # Track user message count
-        profile = self.data.verify_profile(guild_id, message.author.id)
-        profile["messages"][-1] += 1
+        # Track channel + user message counts
+        self.data.add_channel_message(guild_id, message.channel.id)
+        self.data.add_messages(guild_id, message.author.id)
 
         # Auto-vote on image posts
         settings = self.data.verify_settings(guild_id)
@@ -83,6 +136,8 @@ class ProfileCog(commands.Cog):
         if settings.get("downvote"):
             await message.add_reaction(downvote or EMOJIS["downvote"])
 
+    # --- Reaction tracking ---
+
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction: discord.Reaction, user: discord.User) -> None:
         await self._handle_reaction(reaction, user, added=True)
@@ -92,6 +147,8 @@ class ProfileCog(commands.Cog):
         await self._handle_reaction(reaction, user, added=False)
 
     async def _handle_reaction(self, reaction: discord.Reaction, user: discord.User, added: bool) -> None:
+        if reaction.message.guild is None:
+            return
         if user == self.bot.user or user == reaction.message.author:
             return
         if isinstance(reaction.emoji, str):
@@ -108,11 +165,10 @@ class ProfileCog(commands.Cog):
         else:
             return
 
-        author_profile = self.data.verify_profile(guild_id, author_id)
-        author_profile["karma"][-1] += karma_delta
+        self.data.add_karma(guild_id, author_id, karma_delta)
+        self.data.add_friendship(guild_id, user.id, karma_delta)
 
-        voter_profile = self.data.verify_profile(guild_id, user.id)
-        voter_profile["friendship"][-1] += karma_delta
+    # --- Commands ---
 
     @app_commands.command(name="profile", description="View a user's profile stats")
     @app_commands.describe(user="The user to view (defaults to yourself)")
@@ -122,7 +178,12 @@ class ProfileCog(commands.Cog):
         user_obj = await self.bot.fetch_user(target.id)
         username = user_obj.display_name
 
-        profile = self.data.verify_profile(interaction.guild.id, target.id)
+        # Flush active VC session so profile shows up-to-date hours
+        key = (interaction.guild.id, target.id)
+        if key in self._vc_joins:
+            self.flush_all()
+
+        totals = self.data.get_profile_totals(interaction.guild.id, target.id)
 
         embed = discord.Embed(colour=BOT_COLOR)
         embed.set_author(
@@ -131,10 +192,10 @@ class ProfileCog(commands.Cog):
         )
 
         fields = [
-            ("karma", sum(profile["karma"])),
-            ("friendship", sum(profile["friendship"])),
-            ("messages", sum(profile["messages"])),
-            ("vc_hours", round(fsum(profile["vc_time"]), 1)),
+            ("karma", totals["karma"]),
+            ("friendship", totals["friendship"]),
+            ("messages", totals["messages"]),
+            ("vc_hours", totals["vc_time"]),
         ]
         for i, (key, value) in enumerate(fields):
             field_data = lang["ui"]["field"][key]
@@ -145,7 +206,7 @@ class ProfileCog(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="graph", description="Graph a profile stat over time")
-    @app_commands.describe(stat_type="The stat to graph (messages, karma, friendship, vc_time)", user="The user to graph")
+    @app_commands.describe(stat_type="The stat to graph", user="The user to graph")
     @app_commands.choices(stat_type=[
         app_commands.Choice(name="Messages", value="messages"),
         app_commands.Choice(name="Karma", value="karma"),
@@ -153,14 +214,16 @@ class ProfileCog(commands.Cog):
         app_commands.Choice(name="VC Time", value="vc_time"),
     ])
     async def graph(self, interaction: discord.Interaction, stat_type: app_commands.Choice[str], user: discord.User) -> None:
-        profile = self.data.profile_data.get(interaction.guild.id, {}).get(user.id)
-        if profile is None or stat_type.value not in profile:
+        series = self.data.get_stat_series(interaction.guild.id, user.id, stat_type.value)
+        if not series:
             await interaction.response.send_message("No data found.", ephemeral=True)
             return
 
         await interaction.response.defer()
-        df = DataFrame(profile[stat_type.value], columns=[stat_type.name])
-        fig = px_line(df, markers=False, template="seaborn")
+        dates = [row[0] for row in series]
+        values = [row[1] for row in series]
+        df = DataFrame({"Date": dates, stat_type.name: values})
+        fig = px_line(df, x="Date", y=stat_type.name, markers=False, template="seaborn")
         fig["data"][0]["line"]["color"] = "#FF4400"
         fig.write_image("Cache/graph.png")
         await interaction.followup.send(file=discord.File("Cache/graph.png"))

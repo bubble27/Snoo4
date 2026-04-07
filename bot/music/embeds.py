@@ -154,9 +154,6 @@ def _add_queue_fields(embed: discord.Embed, player: GuildPlayer, cache: dict, la
     durations = ""
     total_time = sum(cache.get(v, {}).get("secs_length", 0) for v in player.queue)
 
-    if player.autoplay and player.recommended_vid and player.recommended_vid in cache:
-        total_time += cache[player.recommended_vid].get("secs_length", 0)
-
     chr_per_row = 40
     early_break = False
     for i, video_id in enumerate(player.queue):

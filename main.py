@@ -25,12 +25,15 @@ logging.basicConfig(
         logging.FileHandler("Cache/discord.log", encoding="utf-8", mode="w"),
     ],
 )
-log = logging.getLogger("snoo")
+log = logging.getLogger("snute")
 
 # --- Dependency check / auto-fix ---
 def _parse_version(v: str) -> tuple[int, ...]:
+    import re
+    # Strip pre-release/build suffixes like "2.8.0a5403+g5d74ed3e" -> "2.8.0"
+    parts = re.split(r"[^0-9.]", v, maxsplit=1)[0].split(".")[:3]
     try:
-        return tuple(int(x) for x in v.split(".")[:3])
+        return tuple(int(x) for x in parts if x)
     except ValueError:
         return (0,)
 
@@ -85,8 +88,8 @@ def _ensure_dependencies() -> None:
             text=True,
         )
         if result.returncode == 0:
-            print("Done. Restarting...\n")
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+            print("Done. Please restart the bot.\n")
+            sys.exit(0)
         else:
             print(f"pip install failed. Fix manually:\n  pip install {' '.join(fixes)}")
             sys.exit(1)
@@ -245,9 +248,15 @@ async def on_ready() -> None:
         except Exception:
             log.error("Failed to load cog: %s", cog, exc_info=True)
 
-    # Sync slash commands (replaces all registered commands on Discord's side)
+    # Clear stale guild-level commands, then sync globally
+    for guild in bot.guilds:
+        try:
+            bot.tree.clear_commands(guild=guild)
+            await bot.tree.sync(guild=guild)
+        except Exception:
+            pass
     synced = await bot.tree.sync()
-    log.info("Synced %d commands", len(synced))
+    log.info("Synced %d global commands", len(synced))
 
     # Set presence
     await bot.change_presence(
@@ -259,6 +268,34 @@ async def on_ready() -> None:
     if channel and hasattr(channel, "send"):
         from socket import gethostname
         await channel.send(f"Running version: {VERSION} on {gethostname()}")
+
+
+@bot.event
+async def on_close() -> None:
+    """Clean up resources on shutdown."""
+    log.info("Shutting down...")
+
+    # Flush VC time for anyone still connected
+    profile_cog = bot.cogs.get("ProfileCog")
+    if profile_cog:
+        profile_cog.flush_all()
+
+    # Close database connections
+    bot.data.close()  # type: ignore[attr-defined]
+
+    # Shut down YouTube thread pool
+    from bot.music.youtube import _pool
+    _pool.shutdown(wait=False)
+
+    # Clean up temp files
+    import glob
+    for f in glob.glob("Cache/img_*.png") + glob.glob("Cache/graph.png"):
+        try:
+            os.remove(f)
+        except OSError:
+            pass
+
+    log.info("Cleanup complete")
 
 
 # --- Run ---

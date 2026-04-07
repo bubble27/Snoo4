@@ -56,7 +56,7 @@ class SettingsCog(commands.Cog):
                 emoji=lang_data["flag"],
                 default=(name == config["lang_set"]),
             )
-            for name, lang_data in self.data.language.items()
+            for name, lang_data in sorted(self.data.language.items(), key=lambda x: x[0].lower())
         ]
         select = Select(placeholder=lang["ui"]["field"]["select_language"], options=options)
 

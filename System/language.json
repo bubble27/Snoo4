@@ -2,11 +2,11 @@
     "English": {
         "flag": "🇬🇧",
         "settings_info": {
-            "votes": "choose whether or not Snoo puts votes on posts",
-            "downvote": "choose whether or not Snoo adds downvotes to posts",
+            "votes": "choose whether or not Snute puts votes on posts",
+            "downvote": "choose whether or not Snute adds downvotes to posts",
             "slim nowplaying": "shows / hides views and upload date on the nowplaying embed",
             "large nowplaying thumbnail": "sets the nowplaying thumbnail to the larger, two-message style",
-            "language": "the language that Snoo speaks"
+            "language": "the language that Snute speaks"
         },
         "setting_names": {
             "language": "language",
@@ -14,25 +14,27 @@
             "downvote": "dislike"
         },
         "error": {
-            "setting_not_found": "setting not found!",
-            "age_restricted": "sorry, but I'm not allowed to play 18+ content since I'm only 2 years old!",
+            "setting_not_found": "Setting not found!",
+            "age_restricted": "Sorry, but I'm not allowed to play 18+ content since I'm only 2 years old!",
             "nothing_found": "I wasn't able to find anything. Try something else?",
-            "no_vc": "make sure you're in a voice channel first!",
-            "not_youtube": "that's not a YouTube link, I'm unable to play it!",
-            "no_content": "sorry but I'm unable to understand what the content of that message is.",
-            "can_not_skip": "this is the last song in queue, I have nothing to skip to!",
-            "can_not_back": "this is the first song in queue, I have nothing to go back to!",
-            "no_url": "you did not provide a url and I'm not playing anything so I don't know what to extract!",
+            "no_vc": "Make sure you're in a voice channel first!",
+            "not_youtube": "That's not a YouTube link, I'm unable to play it!",
+            "no_content": "Sorry but I'm unable to understand what the content of that message is.",
+            "can_not_skip": "This is the last song in queue, I have nothing to skip to!",
+            "can_not_back": "This is the first song in queue, I have nothing to go back to!",
+            "no_url": "You did not provide a url and I'm not playing anything so I don't know what to extract!",
             "extract": "I was unable to extract that url, are you sure it's a proper youtube url?",
-            "no_queue": "nothing in queue!",
-            "play_error": "sorry but something went wrong while I was trying to play that video!"
+            "no_queue": "Nothing in queue!",
+            "play_error": "Sorry but something went wrong while I was trying to play that video!",
+            "session_expired": "This session has expired. Use /play to start a new one!"
         },
         "notifs": {
             "loop_start": "I'll now loop the current song!",
             "loop_stop": "I will no longer loop!",
             "autoplay_start": "I'll do my best to choose a relevant video to play next!",
             "autoplay_stop": "I'll no longer automaticaly play videos!",
-            "searching": "searching for `{}`",
+            "searching": "Searching for `{}`",
+            "fetching": "Just a moment while I fetch the video info",
             "skip": "{} has skipped the current song!",
             "back": "{} has rewinded to the previous track!",
             "shuffle": "I have shuffled the current queue!",
@@ -70,8 +72,8 @@
                 },
                 "views": "views",
                 "upload_date": "upload date",
-                "stopped": "have a nice day!",
-                "queue_end": "play something new!",
+                "stopped": "Have a nice day!",
+                "queue_end": "Play something new!",
                 "queue_footer": {
                     "full": "and {} others, total queue time: {}",
                     "short": "total queue time: {}"
@@ -79,6 +81,8 @@
                 "next_up": "next up",
                 "duration": "duration",
                 "autoplay": "autoplay",
+                "loop": "loop",
+                "shuffle": "shuffle",
                 "time_delta": {
                     "year": {
                         "singular": "a year ago",
@@ -111,13 +115,12 @@
             }
         }
     },
-
     "русский": {
         "flag": "🇷🇺",
         "settings_info": {
-            "votes": "решения, ставить ли Сну лайки на посты",
-            "downvote": "решения, ставить ли Сну дизлайки на посты",
-            "language": "язык на котором разговаривают Сну"
+            "votes": "решения, ставить ли Снут лайки на посты",
+            "downvote": "решения, ставить ли Снут дизлайки на посты",
+            "language": "язык на котором разговаривают Снут"
         },
         "setting_names": {
             "language": "язык",
@@ -125,29 +128,31 @@
             "downvote": "дизлайк"
         },
         "error": {
-            "setting_not_found": "настройка не найдена!",
-            "age_restricted": "извините но мне нельзя играть взрослы контент, поскольку мне всеволеш 2 года!",
-            "nothing_found": "я ничего не смог найти. может быть, стоит попробовать что-то другое?",
-            "no_vc": "сначала убедитесь, что вы в голосовом канале!",
-            "not_youtube": "это не Ютубовская ссылка, я не могу ее сыграть!",
-            "no_content": "извините, но я не понимаю смысл этого сообщения.",
-            "can_not_skip": "это последняя песня в очереди, я не могу идти дальше потому что дальше нечево нет!",
-            "can_not_back": "это первая песня в очереди, я не могу вернуться, потому что до нее ничего нет!",
-            "no_url": "вы не дали мне ссылку и я ничего не играю, так что я не знаю что извлечь!",
-            "extract": "у меня не получилось извлечь информацию из той ссылки. вы уверены что она провельная ссылка Ютуба?",
-            "no_queue": "очередь пустая!",
-            "play_error": "извините но что-то пошло не так пока я пробовал сыграть ту песню!"
+            "setting_not_found": "Настройка не найдена!",
+            "age_restricted": "Извините но мне нельзя играть взрослы контент, поскольку мне всеволеш 2 года!",
+            "nothing_found": "Я ничего не смог найти. может быть, стоит попробовать что-то другое?",
+            "no_vc": "Сначала убедитесь, что вы в голосовом канале!",
+            "not_youtube": "Это не Ютубовская ссылка, я не могу ее сыграть!",
+            "no_content": "Извините, но я не понимаю смысл этого сообщения.",
+            "can_not_skip": "Это последняя песня в очереди, я не могу идти дальше потому что дальше нечево нет!",
+            "can_not_back": "Это первая песня в очереди, я не могу вернуться, потому что до нее ничего нет!",
+            "no_url": "Вы не дали мне ссылку и я ничего не играю, так что я не знаю что извлечь!",
+            "extract": "У меня не получилось извлечь информацию из той ссылки. вы уверены что она провельная ссылка Ютуба?",
+            "no_queue": "Очередь пустая!",
+            "play_error": "Извините но что-то пошло не так пока я пробовал сыграть ту песню!",
+            "session_expired": "Эта сессия истекла. Используйте /play чтобы начать новую!"
         },
         "notifs": {
-            "loop_start": "я теперь буду повторять эту песню!",
-            "loop_stop": "я больше не буду повторять эту песню!",
-            "autoplay_start": "я теперь буду стараться выбирать релевантный песни чтобы сыграть следующими!",
-            "autoplay_stop": "я больше не буду самамом выбирать песни!",
-            "searching": "ищу «`{}`»",
+            "loop_start": "Я теперь буду повторять эту песню!",
+            "loop_stop": "Я больше не буду повторять эту песню!",
+            "autoplay_start": "Я теперь буду стараться выбирать релевантный песни чтобы сыграть следующими!",
+            "autoplay_stop": "Я больше не буду самамом выбирать песни!",
+            "searching": "Ищу «`{}`»",
+            "fetching": "Подожди немного, я загружаю информацию о видео",
             "skip": "{} перешел на следующий трек!",
             "back": "{} перевел на предыдущий трек!",
-            "shuffle": "я перемешал очередь!",
-            "unshuffle": "я размешал очередь!"
+            "shuffle": "Я перемешал очередь!",
+            "unshuffle": "Я размешал очередь!"
         },
         "ui": {
             "title": {
@@ -181,8 +186,8 @@
                 },
                 "views": "просмотров",
                 "upload_date": "дата публикации",
-                "stopped": "щаслива!",
-                "queue_end": "сыграйте что-нибудь новое!",
+                "stopped": "Щаслива!",
+                "queue_end": "Сыграйте что-нибудь новое!",
                 "queue_footer": {
                     "full": "и {} других, суммарное время очереди: {}",
                     "short": "суммарное время очереди: {}"
@@ -190,6 +195,8 @@
                 "next_up": "следующая",
                 "duration": "длина",
                 "autoplay": "автовоспроизведение",
+                "loop": "повтор",
+                "shuffle": "перемешать",
                 "time_delta": {
                     "year": {
                         "singular": "год назад",
@@ -222,13 +229,12 @@
             }
         }
     },
-
     "日本語": {
         "flag": "🇯🇵",
         "settings_info": {
-            "votes": "スヌーがポストに「いいね！」と「よくないね」が追加するかどうかを選ぶ",
-            "downvote": "スヌーがポストに「よくないね」が追加するかどうかを選ぶ",
-            "language": "スヌーが喋る言語"
+            "votes": "スヌートがポストに「いいね！」と「よくないね」が追加するかどうかを選ぶ",
+            "downvote": "スヌートがポストに「よくないね」が追加するかどうかを選ぶ",
+            "language": "スヌートが喋る言語"
         },
         "setting_names": {
             "language": "言語",
@@ -247,7 +253,8 @@
             "no_url": "リンクをくれなかったとぼくは何も再生してないから、何を抽出するのはわからないよ！",
             "extract": "このリンクを抽出できなかった、本当のYouTubeリンクであることを確認したか？",
             "no_queue": "キューは空！",
-            "play_error": "ごめん、再生の時、何か問題が発生してしまった！"
+            "play_error": "ごめん、再生の時、何か問題が発生してしまった！",
+            "session_expired": "このセッションは期限切れだよ。/playで新しく始めてね！"
         },
         "notifs": {
             "loop_start": "今から再生中曲はリピートする！",
@@ -255,6 +262,7 @@
             "autoplay_start": "今からよくて関連する曲を選んでみる！",
             "autoplay_stop": "もう自分で曲を再生しない！",
             "searching": "「`{}`」を検索してる",
+            "fetching": "ちょっと待ってね、動画情報を取得してる",
             "skip": "{}が再生中曲から次へ進んだ！",
             "back": "{}が再生中曲から前へ戻った！",
             "shuffle": "キューをシャッフルした！",
@@ -301,6 +309,8 @@
                 "next_up": "次は",
                 "duration": "長さ",
                 "autoplay": "自動再生",
+                "loop": "リピート",
+                "shuffle": "シャッフル",
                 "time_delta": {
                     "year": {
                         "singular": "去年",
@@ -333,15 +343,14 @@
             }
         }
     },
-
     "français": {
         "flag": "🇫🇷",
         "settings_info": {
-            "votes": "choisir si Snoo ajoute des votes positifs aux posts",
-            "downvote": "choisir si Snoo ajoute des votes négatifs aux posts",
+            "votes": "choisir si Snute ajoute des votes positifs aux posts",
+            "downvote": "choisir si Snute ajoute des votes négatifs aux posts",
             "slim nowplaying": "affiche / masque les vues et la date de mise en ligne",
             "large nowplaying thumbnail": "affiche la miniature nowplaying en version large",
-            "language": "la langue parlée par Snoo"
+            "language": "la langue parlée par Snute"
         },
         "setting_names": {
             "language": "langue",
@@ -349,29 +358,31 @@
             "downvote": "je n’aime pas"
         },
         "error": {
-            "setting_not_found": "paramètre introuvable !",
-            "age_restricted": "désolé, je ne peux pas lire du contenu 18+ : je n’ai que 2 ans !",
-            "nothing_found": "je n’ai rien trouvé. Essaie autre chose ?",
-            "no_vc": "assure-toi d’être dans un salon vocal !",
-            "not_youtube": "ce n’est pas un lien YouTube valide !",
-            "no_content": "je ne peux pas comprendre ce message.",
-            "can_not_skip": "c’est la dernière musique de la file.",
-            "can_not_back": "c’est la première musique de la file.",
-            "no_url": "tu n’as pas fourni de lien.",
-            "extract": "je ne peux pas extraire ce lien.",
-            "no_queue": "la file est vide !",
-            "play_error": "une erreur est survenue pendant la lecture."
+            "setting_not_found": "Paramètre introuvable !",
+            "age_restricted": "Désolé, je ne peux pas lire du contenu 18+ : je n’ai que 2 ans !",
+            "nothing_found": "Je n’ai rien trouvé. Essaie autre chose ?",
+            "no_vc": "Assure-toi d’être dans un salon vocal !",
+            "not_youtube": "Ce n’est pas un lien YouTube valide !",
+            "no_content": "Je ne peux pas comprendre ce message.",
+            "can_not_skip": "C’est la dernière musique de la file.",
+            "can_not_back": "C’est la première musique de la file.",
+            "no_url": "Tu n’as pas fourni de lien.",
+            "extract": "Je ne peux pas extraire ce lien.",
+            "no_queue": "La file est vide !",
+            "play_error": "Une erreur est survenue pendant la lecture.",
+            "session_expired": "Cette session a expiré. Utilise /play pour en démarrer une nouvelle !"
         },
         "notifs": {
-            "loop_start": "je boucle maintenant la musique actuelle !",
-            "loop_stop": "je ne boucle plus la musique !",
-            "autoplay_start": "je choisirai une vidéo pertinente à jouer ensuite !",
-            "autoplay_stop": "je n’autolirai plus de vidéos !",
-            "searching": "recherche de `{}`",
+            "loop_start": "Je boucle maintenant la musique actuelle !",
+            "loop_stop": "Je ne boucle plus la musique !",
+            "autoplay_start": "Je choisirai une vidéo pertinente à jouer ensuite !",
+            "autoplay_stop": "Je n’autolirai plus de vidéos !",
+            "searching": "Recherche de `{}`",
+            "fetching": "Un instant, je récupère les infos de la vidéo",
             "skip": "{} a passé la musique !",
             "back": "{} est revenu en arrière !",
-            "shuffle": "j’ai mélangé la file !",
-            "unshuffle": "j’ai remis la file en ordre !"
+            "shuffle": "J’ai mélangé la file !",
+            "unshuffle": "J’ai remis la file en ordre !"
         },
         "ui": {
             "title": {
@@ -405,8 +416,8 @@
                 },
                 "views": "vues",
                 "upload_date": "mise en ligne",
-                "stopped": "bonne journée !",
-                "queue_end": "ajoute quelque chose !",
+                "stopped": "Bonne journée !",
+                "queue_end": "Ajoute quelque chose !",
                 "queue_footer": {
                     "full": "et {} autres, durée totale : {}",
                     "short": "durée totale : {}"
@@ -414,12 +425,30 @@
                 "next_up": "à suivre",
                 "duration": "durée",
                 "autoplay": "auto-lecture",
+                "loop": "boucle",
+                "shuffle": "mélanger",
                 "time_delta": {
-                    "year": { "singular": "il y a un an", "plural": "il y a {} ans" },
-                    "month": { "singular": "il y a un mois", "plural": "il y a {} mois" },
-                    "day": { "singular": "hier", "plural": "il y a {} jours" },
-                    "hour": { "singular": "il y a une heure", "plural": "il y a {} heures" },
-                    "minute": { "singular": "il y a une minute", "plural": "il y a {} minutes", "less_then": "il y a moins d’une minute" }
+                    "year": {
+                        "singular": "il y a un an",
+                        "plural": "il y a {} ans"
+                    },
+                    "month": {
+                        "singular": "il y a un mois",
+                        "plural": "il y a {} mois"
+                    },
+                    "day": {
+                        "singular": "hier",
+                        "plural": "il y a {} jours"
+                    },
+                    "hour": {
+                        "singular": "il y a une heure",
+                        "plural": "il y a {} heures"
+                    },
+                    "minute": {
+                        "singular": "il y a une minute",
+                        "plural": "il y a {} minutes",
+                        "less_then": "il y a moins d’une minute"
+                    }
                 },
                 "number_multiplier": {
                     "thousand": "k",
@@ -430,15 +459,14 @@
             }
         }
     },
-
     "deutsch": {
         "flag": "🇩🇪",
         "settings_info": {
-            "votes": "wählen, ob Snoo Beiträge positiv bewertet",
-            "downvote": "wählen, ob Snoo Beiträge negativ bewertet",
+            "votes": "wählen, ob Snute Beiträge positiv bewertet",
+            "downvote": "wählen, ob Snute Beiträge negativ bewertet",
             "slim nowplaying": "zeigt / versteckt Aufrufe und Upload-Datum",
             "large nowplaying thumbnail": "setzt die große Now-Playing-Vorschau",
-            "language": "die Sprache, die Snoo spricht"
+            "language": "die Sprache, die Snute spricht"
         },
         "setting_names": {
             "language": "Sprache",
@@ -457,14 +485,16 @@
             "no_url": "Kein Link angegeben.",
             "extract": "Konnte den Link nicht extrahieren.",
             "no_queue": "Warteschlange ist leer!",
-            "play_error": "Beim Abspielen ist ein Fehler aufgetreten!"
+            "play_error": "Beim Abspielen ist ein Fehler aufgetreten!",
+            "session_expired": "Diese Sitzung ist abgelaufen. Benutze /play um eine neue zu starten!"
         },
         "notifs": {
             "loop_start": "Ich wiederhole nun den aktuellen Song!",
             "loop_stop": "Ich wiederhole nicht mehr!",
             "autoplay_start": "Ich suche passende Videos für danach!",
             "autoplay_stop": "Ich spiele nicht mehr automatisch ab!",
-            "searching": "suche `{}`",
+            "searching": "Suche `{}`",
+            "fetching": "Einen Moment, ich rufe die Videoinfos ab",
             "skip": "{} hat den Song übersprungen!",
             "back": "{} ist zum vorherigen Song zurückgegangen!",
             "shuffle": "Ich habe die Warteschlange gemischt!",
@@ -511,12 +541,30 @@
                 "next_up": "als Nächstes",
                 "duration": "Dauer",
                 "autoplay": "Autoplay",
+                "loop": "Wiederholen",
+                "shuffle": "Mischen",
                 "time_delta": {
-                    "year": { "singular": "vor einem Jahr", "plural": "vor {} Jahren" },
-                    "month": { "singular": "vor einem Monat", "plural": "vor {} Monaten" },
-                    "day": { "singular": "gestern", "plural": "vor {} Tagen" },
-                    "hour": { "singular": "vor einer Stunde", "plural": "vor {} Stunden" },
-                    "minute": { "singular": "vor einer Minute", "plural": "vor {} Minuten", "less_then": "vor weniger als einer Minute" }
+                    "year": {
+                        "singular": "vor einem Jahr",
+                        "plural": "vor {} Jahren"
+                    },
+                    "month": {
+                        "singular": "vor einem Monat",
+                        "plural": "vor {} Monaten"
+                    },
+                    "day": {
+                        "singular": "gestern",
+                        "plural": "vor {} Tagen"
+                    },
+                    "hour": {
+                        "singular": "vor einer Stunde",
+                        "plural": "vor {} Stunden"
+                    },
+                    "minute": {
+                        "singular": "vor einer Minute",
+                        "plural": "vor {} Minuten",
+                        "less_then": "vor weniger als einer Minute"
+                    }
                 },
                 "number_multiplier": {
                     "thousand": "K",
@@ -527,15 +575,14 @@
             }
         }
     },
-
     "中文（简体）": {
         "flag": "🇨🇳",
         "settings_info": {
-            "votes": "选择 Snoo 是否给帖子点赞",
-            "downvote": "选择 Snoo 是否给帖子点踩",
+            "votes": "选择 Snute 是否给帖子点赞",
+            "downvote": "选择 Snute 是否给帖子点踩",
             "slim nowplaying": "显示 / 隐藏播放界面的观看数和上传日期",
             "large nowplaying thumbnail": "使用更大的播放缩略图样式",
-            "language": "Snoo 使用的语言"
+            "language": "Snute 使用的语言"
         },
         "setting_names": {
             "language": "语言",
@@ -554,7 +601,8 @@
             "no_url": "你没有提供链接，我也没有在播放任何内容。",
             "extract": "无法解析这个链接，请确认是有效的 YouTube 链接。",
             "no_queue": "队列为空！",
-            "play_error": "播放时出现错误！"
+            "play_error": "播放时出现错误！",
+            "session_expired": "此会话已过期。请使用 /play 开始新的会话！"
         },
         "notifs": {
             "loop_start": "我现在会循环播放这首歌！",
@@ -562,6 +610,7 @@
             "autoplay_start": "我会自动选择下一首相关视频！",
             "autoplay_stop": "我将不再自动播放！",
             "searching": "正在搜索 `{}`",
+            "fetching": "稍等，正在获取视频信息",
             "skip": "{} 已跳过当前歌曲！",
             "back": "{} 已返回上一首！",
             "shuffle": "已随机排序队列！",
@@ -608,12 +657,30 @@
                 "next_up": "下一首",
                 "duration": "时长",
                 "autoplay": "自动播放",
+                "loop": "循环",
+                "shuffle": "随机",
                 "time_delta": {
-                    "year": { "singular": "一年前", "plural": "{} 年前" },
-                    "month": { "singular": "上个月", "plural": "{} 个月前" },
-                    "day": { "singular": "昨天", "plural": "{} 天前" },
-                    "hour": { "singular": "一小时前", "plural": "{} 小时前" },
-                    "minute": { "singular": "一分钟前", "plural": "{} 分钟前", "less_then": "不到一分钟前" }
+                    "year": {
+                        "singular": "一年前",
+                        "plural": "{} 年前"
+                    },
+                    "month": {
+                        "singular": "上个月",
+                        "plural": "{} 个月前"
+                    },
+                    "day": {
+                        "singular": "昨天",
+                        "plural": "{} 天前"
+                    },
+                    "hour": {
+                        "singular": "一小时前",
+                        "plural": "{} 小时前"
+                    },
+                    "minute": {
+                        "singular": "一分钟前",
+                        "plural": "{} 分钟前",
+                        "less_then": "不到一分钟前"
+                    }
                 },
                 "number_multiplier": {
                     "thousand": "千",
@@ -624,15 +691,14 @@
             }
         }
     },
-
     "español": {
         "flag": "🇪🇸",
         "settings_info": {
-            "votes": "elige si Snoo pone votos positivos en las publicaciones",
-            "downvote": "elige si Snoo pone votos negativos en las publicaciones",
+            "votes": "elige si Snute pone votos positivos en las publicaciones",
+            "downvote": "elige si Snute pone votos negativos en las publicaciones",
             "slim nowplaying": "muestra / oculta vistas y fecha de subida",
             "large nowplaying thumbnail": "usa la miniatura grande del estilo de dos mensajes",
-            "language": "el idioma que habla Snoo"
+            "language": "el idioma que habla Snute"
         },
         "setting_names": {
             "language": "idioma",
@@ -651,14 +717,16 @@
             "no_url": "No proporcionaste un enlace.",
             "extract": "No pude procesar ese enlace. ¿Seguro que es de YouTube?",
             "no_queue": "¡La cola está vacía!",
-            "play_error": "Ocurrió un error al intentar reproducir ese video."
+            "play_error": "Ocurrió un error al intentar reproducir ese video.",
+            "session_expired": "Esta sesión ha expirado. ¡Usa /play para iniciar una nueva!"
         },
         "notifs": {
             "loop_start": "¡Repetiré la canción actual!",
             "loop_stop": "Ya no repetiré la canción.",
             "autoplay_start": "Elegiré un video relevante para seguir.",
             "autoplay_stop": "Ya no reproduciré videos automáticamente.",
-            "searching": "buscando `{}`",
+            "searching": "Buscando `{}`",
+            "fetching": "Un momento, estoy obteniendo la info del video",
             "skip": "{} ha saltado la canción actual.",
             "back": "{} ha vuelto a la canción anterior.",
             "shuffle": "He mezclado la cola.",
@@ -705,12 +773,30 @@
                 "next_up": "siguiente",
                 "duration": "duración",
                 "autoplay": "autoplay",
+                "loop": "repetir",
+                "shuffle": "aleatorio",
                 "time_delta": {
-                    "year": { "singular": "hace un año", "plural": "hace {} años" },
-                    "month": { "singular": "hace un mes", "plural": "hace {} meses" },
-                    "day": { "singular": "ayer", "plural": "hace {} días" },
-                    "hour": { "singular": "hace una hora", "plural": "hace {} horas" },
-                    "minute": { "singular": "hace un minuto", "plural": "hace {} minutos", "less_then": "hace menos de un minuto" }
+                    "year": {
+                        "singular": "hace un año",
+                        "plural": "hace {} años"
+                    },
+                    "month": {
+                        "singular": "hace un mes",
+                        "plural": "hace {} meses"
+                    },
+                    "day": {
+                        "singular": "ayer",
+                        "plural": "hace {} días"
+                    },
+                    "hour": {
+                        "singular": "hace una hora",
+                        "plural": "hace {} horas"
+                    },
+                    "minute": {
+                        "singular": "hace un minuto",
+                        "plural": "hace {} minutos",
+                        "less_then": "hace menos de un minuto"
+                    }
                 },
                 "number_multiplier": {
                     "thousand": "k",
@@ -718,6 +804,234 @@
                     "billion": "B"
                 },
                 "select_language": "cambiar idioma"
+            }
+        }
+    },
+    "Esperanto": {
+        "flag": "🟢",
+        "settings_info": {
+            "votes": "elektu ĉu Snute aldonu pozitivajn voĉojn al afiŝoj",
+            "downvote": "elektu ĉu Snute aldonu negativajn voĉojn al afiŝoj",
+            "language": "la lingvo kiun Snute parolas"
+        },
+        "setting_names": {
+            "language": "lingvo",
+            "votes": "ŝatoj",
+            "downvote": "malŝatoj"
+        },
+        "error": {
+            "setting_not_found": "Agordo ne trovita!",
+            "age_restricted": "Pardonu, mi ne rajtas ludi 18+ enhavon ĉar mi havas nur 2 jarojn!",
+            "nothing_found": "Mi nenion trovis. ĉu provi ion alian?",
+            "no_vc": "Certigu ke vi estas en voĉa kanalo!",
+            "not_youtube": "Tio ne estas YouTube-ligilo, mi ne povas ludi ĝin!",
+            "no_content": "Pardonu, mi ne povas kompreni la enhavon de tiu mesaĝo.",
+            "can_not_skip": "Tio estas la lasta kanto en la vico, mi ne havas kien salti!",
+            "can_not_back": "Tio estas la unua kanto en la vico, mi ne havas kien reiri!",
+            "no_url": "Vi ne donis ligilon kaj mi ludas nenion, do mi ne scias kion eltiri!",
+            "extract": "Mi ne povis eltiri tiun ligilon, ĉu vi certas ke ĝi estas ĝusta YouTube-ligilo?",
+            "no_queue": "La vico estas malplena!",
+            "play_error": "Pardonu, io misfunkciis dum mi provis ludi tiun videon!",
+            "session_expired": "Ĉi tiu seanco eksvalidiĝis. Uzu /play por komenci novan!"
+        },
+        "notifs": {
+            "loop_start": "Mi nun ripetados la nunan kanton!",
+            "loop_stop": "Mi ne plu ripetados!",
+            "autoplay_start": "Mi provos elekti rilatan videon por ludi poste!",
+            "autoplay_stop": "Mi ne plu aŭtomate ludos videojn!",
+            "searching": "Serĉante `{}`",
+            "fetching": "Atendu momenton, mi trovas la video-informojn",
+            "skip": "{} saltis la nunan kanton!",
+            "back": "{} reiris al la antaŭa kanto!",
+            "shuffle": "Mi miksis la vicon!",
+            "unshuffle": "Mi restarigis la originalan ordon!"
+        },
+        "ui": {
+            "title": {
+                "settings": "agordoj",
+                "poll": "enketo",
+                "profile": "profilo de {}",
+                "nowplaying": "nun ludas",
+                "stopped": "haltigita",
+                "queue": "vico",
+                "queue_end": "vico finiĝis",
+                "queued": "aldonita al vico",
+                "playlist": "ludlisto"
+            },
+            "field": {
+                "option": "opcio",
+                "karma": {
+                    "title": "karmo",
+                    "desc": "ricevis **{}** pozitivajn voĉojn"
+                },
+                "friendship": {
+                    "title": "amikeco",
+                    "desc": "donis **{}** karmon al aliaj"
+                },
+                "messages": {
+                    "title": "mesaĝoj",
+                    "desc": "sendis **{}** mesaĝojn"
+                },
+                "vc_hours": {
+                    "title": "voĉaj horoj",
+                    "desc": "pasigis **{}** horojn en voĉkanalo"
+                },
+                "views": "vidoj",
+                "upload_date": "alŝuta dato",
+                "stopped": "Bonan tagon!",
+                "queue_end": "Ludu ion novan!",
+                "queue_footer": {
+                    "full": "kaj {} pliaj, totala vicotempo: {}",
+                    "short": "totala vicotempo: {}"
+                },
+                "next_up": "sekva",
+                "duration": "daŭro",
+                "autoplay": "aŭtoludo",
+                "loop": "ripetado",
+                "shuffle": "miksi",
+                "time_delta": {
+                    "year": {
+                        "singular": "antaŭ unu jaro",
+                        "plural": "antaŭ {} jaroj"
+                    },
+                    "month": {
+                        "singular": "antaŭ unu monato",
+                        "plural": "antaŭ {} monatoj"
+                    },
+                    "day": {
+                        "singular": "hieraŭ",
+                        "plural": "antaŭ {} tagoj"
+                    },
+                    "hour": {
+                        "singular": "antaŭ unu horo",
+                        "plural": "antaŭ {} horoj"
+                    },
+                    "minute": {
+                        "singular": "antaŭ unu minuto",
+                        "plural": "antaŭ {} minutoj",
+                        "less_than": "antaŭ malpli ol unu minuto"
+                    }
+                },
+                "number_multiplier": {
+                    "thousand": "K",
+                    "million": "M",
+                    "billion": "B"
+                },
+                "select_language": "ŝanĝi lingvon"
+            }
+        }
+    },
+    "toki pona": {
+        "flag": "💛",
+        "settings_info": {
+            "votes": "o wile ala wile e ni: Snute li pana e pona tawa toki",
+            "downvote": "o wile ala wile e ni: Snute li pana e ike tawa toki",
+            "language": "toki pi Snute"
+        },
+        "setting_names": {
+            "language": "toki",
+            "votes": "pona",
+            "downvote": "ike"
+        },
+        "error": {
+            "setting_not_found": "mi ken ala alasa e nasin ni!",
+            "age_restricted": "mi ken ala open e ni tan ni: mi lili a!",
+            "nothing_found": "mi alasa. mi ken ala kama jo. o ante?",
+            "no_vc": "o lon tomo kalama!",
+            "not_youtube": "ni li linja YouTube ala. mi ken ala open e ni!",
+            "no_content": "mi sona ala e toki ni.",
+            "can_not_skip": "kalama ni li kalama pini. mi ken ala tawa!",
+            "can_not_back": "kalama ni li kalama open. mi ken ala tawa monsi!",
+            "no_url": "sina pana ala e linja. mi sona ala!",
+            "extract": "mi ken ala kama jo tan linja ni. ona li pona ala pona?",
+            "no_queue": "linja kalama li lon ala!",
+            "play_error": "pakala! mi ken ala open e kalama ni!",
+            "session_expired": "tenpo ni li pini. o kepeken /play tawa sin!"
+        },
+        "notifs": {
+            "loop_start": "mi sin open e kalama ni!",
+            "loop_stop": "mi sin ala!",
+            "autoplay_start": "mi alasa e kalama sin pona!",
+            "autoplay_stop": "mi alasa ala e kalama sin!",
+            "searching": "mi alasa e `{}`",
+            "fetching": "o awen lili, mi alasa e sona pi kalama",
+            "skip": "{} li tawa kalama sin!",
+            "back": "{} li tawa monsi!",
+            "shuffle": "mi ante e linja kalama!",
+            "unshuffle": "mi pona e linja kalama!"
+        },
+        "ui": {
+            "title": {
+                "settings": "nasin",
+                "poll": "wile sona",
+                "profile": "lipu pi {}",
+                "nowplaying": "kalama lon",
+                "stopped": "pini",
+                "queue": "linja kalama",
+                "queue_end": "linja kalama li pini",
+                "queued": "lon linja kalama",
+                "playlist": "kulupu kalama"
+            },
+            "field": {
+                "option": "wile",
+                "karma": {
+                    "title": "pona",
+                    "desc": "kama jo e pona **{}**"
+                },
+                "friendship": {
+                    "title": "jan pona",
+                    "desc": "pana e pona **{}** tawa jan ante"
+                },
+                "messages": {
+                    "title": "toki",
+                    "desc": "toki e **{}** toki"
+                },
+                "vc_hours": {
+                    "title": "tenpo kalama",
+                    "desc": "lon tomo kalama la tenpo **{}**"
+                },
+                "views": "lukin",
+                "upload_date": "tenpo pana",
+                "stopped": "o pona!",
+                "queue_end": "o open e kalama sin!",
+                "queue_footer": {
+                    "full": "en kalama **{}** ante. tenpo ale: {}",
+                    "short": "tenpo ale: {}"
+                },
+                "next_up": "kalama sin",
+                "duration": "tenpo",
+                "autoplay": "kalama lon",
+                "loop": "sin",
+                "shuffle": "ante",
+                "time_delta": {
+                    "year": {
+                        "singular": "sike wan pini",
+                        "plural": "sike {} pini"
+                    },
+                    "month": {
+                        "singular": "mun wan pini",
+                        "plural": "mun {} pini"
+                    },
+                    "day": {
+                        "singular": "tenpo suno pini",
+                        "plural": "tenpo suno {} pini"
+                    },
+                    "hour": {
+                        "singular": "tenpo wan pini",
+                        "plural": "tenpo {} pini"
+                    },
+                    "minute": {
+                        "singular": "tenpo lili wan pini",
+                        "plural": "tenpo lili {} pini",
+                        "less_than": "tenpo lili a pini"
+                    }
+                },
+                "number_multiplier": {
+                    "thousand": "K",
+                    "million": "M",
+                    "billion": "B"
+                },
+                "select_language": "o ante e toki"
             }
         }
     }

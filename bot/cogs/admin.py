@@ -35,46 +35,26 @@ class AdminCog(commands.Cog):
 
     async def cog_load(self) -> None:
         self.auto_save_task.start()
-        self.daily_entry_check.start()
 
     async def cog_unload(self) -> None:
         self.auto_save_task.cancel()
-        self.daily_entry_check.cancel()
 
     # --- Periodic tasks ---
 
     @tasks.loop(seconds=AUTO_SAVE_INTERVAL)
     async def auto_save_task(self) -> None:
-        users_in_vc = self._get_users_in_vc()
-        self.data.update_vc_time(users_in_vc)
+        profile_cog = self.bot.cogs.get("ProfileCog")
+        if profile_cog:
+            profile_cog.flush_all()
         await self.data.save_all(self.bot)
+        # Evict stale YouTube cache entries to prevent unbounded memory growth
+        yt = getattr(self.bot, "youtube", None)
+        if yt:
+            yt.evict_stale()
 
     @auto_save_task.before_loop
     async def before_auto_save(self) -> None:
         await self.bot.wait_until_ready()
-
-    @tasks.loop(minutes=1)
-    async def daily_entry_check(self) -> None:
-        from datetime import datetime
-        if datetime.now().strftime("%H:%M") == "05:00":
-            self.data.add_daily_entry()
-            log.info("Daily entry added")
-
-    @daily_entry_check.before_loop
-    async def before_daily_check(self) -> None:
-        await self.bot.wait_until_ready()
-
-    # --- Helper ---
-
-    def _get_users_in_vc(self) -> dict[int, list[int]]:
-        result: dict[int, list[int]] = {}
-        for guild in self.bot.guilds:
-            for vc in guild.voice_channels:
-                for member in vc.members:
-                    if member.bot:
-                        continue
-                    result.setdefault(guild.id, []).append(member.id)
-        return result
 
     # --- Admin commands ---
 
@@ -86,14 +66,6 @@ class AdminCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         await self.data.save_all(self.bot)
         await interaction.followup.send("\u2705 Saved", ephemeral=True)
-
-    @app_commands.command(name="add_entry", description="Manually add a daily entry")
-    async def add_entry(self, interaction: discord.Interaction) -> None:
-        if not _is_admin(interaction):
-            await interaction.response.send_message(ADMIN_DENIED, ephemeral=True)
-            return
-        self.data.add_daily_entry()
-        await interaction.response.send_message("\u2705 Entry added", ephemeral=True)
 
     @app_commands.command(name="quit", description="Shut down the bot")
     async def quit_cmd(self, interaction: discord.Interaction) -> None:
@@ -127,21 +99,9 @@ class AdminCog(commands.Cog):
             await interaction.response.send_message(ADMIN_DENIED, ephemeral=True)
             return
 
-        guild_id = interaction.guild.id
-        user_id = interaction.user.id
-        user_history = self.data.song_history.get(guild_id, {}).get(user_id, [])
-
-        totals: dict[str, float] = {}
-        for day in user_history:
-            if not isinstance(day, dict):
-                continue
-            for video_id, watches in day.items():
-                for watch in watches:
-                    totals[video_id] = round(totals.get(video_id, 0) + watch.get("retention", 0), 2)
-
-        sorted_vids = sorted(totals.items(), key=lambda x: x[1], reverse=True)[:10]
-        result = [vid_id for vid_id, _ in sorted_vids]
-        await interaction.response.send_message(str(result), ephemeral=True)
+        top = self.data.get_top_songs(interaction.guild.id, interaction.user.id)
+        result = [f"`{vid_id}` — {score}" for vid_id, score in top]
+        await interaction.response.send_message("\n".join(result) or "No history.", ephemeral=True)
 
     # --- Poll command ---
 

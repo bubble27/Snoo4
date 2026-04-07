@@ -20,7 +20,7 @@ DATA_CHANNELS = {
 }
 
 # Command prefixes (case-insensitive matching handled in bot setup)
-PREFIXES = ["!s ", "hey snoo, ", "hey snoo ", "snoo, ", "snoo ", "snute ", "nsnoo "]
+PREFIXES = ["!s ", "hey snute, ", "hey snute ", "snute, ", "snute "]
 
 # Default server settings
 DEFAULT_SETTINGS = {"lang_set": "English", "votes": True, "downvote": False}

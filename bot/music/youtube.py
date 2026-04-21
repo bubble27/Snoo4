@@ -169,12 +169,14 @@ class YouTubeService:
             return None
 
     def search_and_fetch(self, query: str, disliked: set[str] | None = None) -> str | None:
-        if self.verify_id(query):
-            video_id = query
-        else:
-            video_id = self.search(query, disliked)
-            if video_id is None:
-                return None
+        # If it looks like a video ID (11 chars, no spaces), try fetching directly
+        if len(query) == 11 and " " not in query:
+            if self.fetch_info(query):
+                return query
+        # Otherwise search YouTube
+        video_id = self.search(query, disliked)
+        if video_id is None:
+            return None
         if not self.fetch_info(video_id):
             return None
         return video_id

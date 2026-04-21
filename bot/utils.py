@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from contextlib import suppress
 from math import floor
 from urllib.parse import parse_qs, urlparse
@@ -58,6 +59,70 @@ def format_time_ago(days_delta: float, lang: dict) -> str:
     if minutes <= 1:
         return td["minute"].get("less_than", td["minute"].get("less_then", "just now"))
     return td["minute"]["plural"].format(minutes)
+
+
+# Approximate character widths for Discord's font (gg sans / proportional sans-serif).
+# Values are relative units where a typical lowercase letter = 1.0.
+_CHAR_WIDTHS: dict[str, float] = {}
+
+# Narrow characters (~0.4)
+for ch in "iIl|!:;.,'\u2019\u2018\u201a":
+    _CHAR_WIDTHS[ch] = 0.4
+
+# Slightly narrow (~0.6)
+for ch in "1jtfrJ()[]{}/ \"":
+    _CHAR_WIDTHS[ch] = 0.6
+
+# Normal width (~0.85) — most lowercase and digits
+for ch in "abcdeghknopqsuvxyz023456789":
+    _CHAR_WIDTHS[ch] = 0.85
+
+# Slightly wide (~1.0) — uppercase, some lowercase
+for ch in "ABCDEFGHKLNOPQRSTUVXYZmw":
+    _CHAR_WIDTHS[ch] = 1.0
+
+# Wide (~1.15)
+for ch in "MW@#%&":
+    _CHAR_WIDTHS[ch] = 1.15
+
+# Special
+_CHAR_WIDTHS[" "] = 0.45
+_CHAR_WIDTHS["\u2014"] = 1.0  # em dash
+_CHAR_WIDTHS["\u2013"] = 0.7  # en dash
+_CHAR_WIDTHS["-"] = 0.5
+
+
+def _char_width(ch: str) -> float:
+    """Get approximate display width for a single character."""
+    if ch in _CHAR_WIDTHS:
+        return _CHAR_WIDTHS[ch]
+    eaw = unicodedata.east_asian_width(ch)
+    if eaw in ("W", "F"):
+        return 1.8  # CJK / fullwidth
+    if unicodedata.category(ch).startswith("M"):
+        return 0.0  # combining marks
+    return 0.85  # default
+
+
+def display_width(text: str) -> float:
+    """Calculate approximate display width of text in Discord's font."""
+    return sum(_char_width(ch) for ch in text)
+
+
+def truncate(text: str, max_width: float = 36.0, max_chars: int = 55) -> str:
+    """Truncate text to fit within max_width display units, adding ... if needed.
+    Also enforces a hard character limit as a safety net."""
+    if len(text) <= 3:
+        return text
+    if display_width(text) <= max_width and len(text) <= max_chars:
+        return text
+    ellipsis_w = display_width("...")
+    w = 0.0
+    for i, ch in enumerate(text):
+        w += _char_width(ch)
+        if w > max_width - ellipsis_w or i >= max_chars - 3:
+            return text[:i] + "..."
+    return text
 
 
 def find_urls(text: str) -> list[str]:

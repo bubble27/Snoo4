@@ -299,6 +299,16 @@ async def on_close() -> None:
 
 
 # --- Run ---
+RESTART_EXIT_CODE = 42
+_restart_requested = False
+
+
+def request_restart() -> None:
+    """Call this to make the bot exit with a restart code."""
+    global _restart_requested
+    _restart_requested = True
+
+
 def main() -> None:
     load_dotenv()
     token = os.environ.get("DISCORD_TOKEN")
@@ -306,6 +316,8 @@ def main() -> None:
         log.critical("DISCORD_TOKEN not set. Add it to .env or your environment.")
         sys.exit(1)
     bot.run(token)
+    if _restart_requested:
+        sys.exit(RESTART_EXIT_CODE)
 
 
 if __name__ == "__main__":

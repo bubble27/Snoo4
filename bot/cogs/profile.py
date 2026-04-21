@@ -125,9 +125,9 @@ class ProfileCog(commands.Cog):
 
         for emoji in message.guild.emojis:
             name = emoji.name.lower()
-            if name == "upvote":
+            if name in ("upvote", "like"):
                 upvote = emoji
-            elif name == "downvote":
+            elif name in ("downvote", "dislike"):
                 downvote = emoji
             if upvote and (downvote or not settings.get("downvote")):
                 break
@@ -158,9 +158,9 @@ class ProfileCog(commands.Cog):
         author_id = reaction.message.author.id
         name = reaction.emoji.name.lower()
 
-        if name == "upvote":
+        if name in ("upvote", "like", "likeon"):
             karma_delta = 1 if added else -1
-        elif name == "downvote":
+        elif name in ("downvote", "dislike", "dislikeon"):
             karma_delta = -1 if added else 1
         else:
             return
@@ -179,18 +179,30 @@ class ProfileCog(commands.Cog):
         username = user_obj.display_name
 
         # Flush active VC session so profile shows up-to-date hours
-        key = (interaction.guild.id, target.id)
-        if key in self._vc_joins:
+        vc_key = (interaction.guild.id, target.id)
+        if vc_key in self._vc_joins:
             self.flush_all()
 
         totals = self.data.get_profile_totals(interaction.guild.id, target.id)
 
-        embed = discord.Embed(colour=BOT_COLOR)
-        embed.set_author(
-            name=lang["ui"]["title"]["profile"].title().format(username),
-            icon_url=ICONS["profile"],
-        )
+        # Get accent color from user profile, fall back to extracting from avatar
+        accent = user_obj.accent_colour
+        if accent is None:
+            accent = await self._color_from_avatar(user_obj)
 
+        # Build embed with user's accent color and avatar
+        avatar_url = user_obj.display_avatar.url
+        # Insert username, capitalize surrounding words but preserve username casing
+        raw = lang["ui"]["title"]["profile"].format(username)
+        idx = raw.find(username)
+        after = raw[idx + len(username):]
+        after = " ".join(w[0].upper() + w[1:] if w else w for w in after.split(" "))
+        profile_title = raw[:idx] + username + after
+
+        embed = discord.Embed(colour=accent or BOT_COLOR)
+        embed.set_author(name=profile_title, icon_url=avatar_url)
+
+        # 2x2 grid using inline fields with spacer
         fields = [
             ("karma", totals["karma"]),
             ("friendship", totals["friendship"]),
@@ -199,11 +211,31 @@ class ProfileCog(commands.Cog):
         ]
         for i, (key, value) in enumerate(fields):
             field_data = lang["ui"]["field"][key]
-            embed.add_field(name=field_data["title"].title(), value=field_data["desc"].format(value), inline=True)
+            embed.add_field(
+                name=field_data["title"].title(),
+                value=field_data["desc"].format(value),
+                inline=True,
+            )
             if i % 2 == 0:
                 embed.add_field(name="\u200b", value="\u200b", inline=True)
 
         await interaction.response.send_message(embed=embed)
+
+    async def _color_from_avatar(self, user: discord.User) -> discord.Colour | None:
+        """Extract dominant color from user's avatar."""
+        try:
+            avatar_bytes = await user.display_avatar.read()
+            from PIL import Image
+            from io import BytesIO
+            img = Image.open(BytesIO(avatar_bytes)).convert("RGB").resize((50, 50))
+            # Get most common non-dark color
+            pixels = list(img.getdata())
+            pixels.sort(key=lambda p: sum(p), reverse=True)
+            # Pick the pixel at ~25th percentile (avoids pure white/black)
+            pick = pixels[len(pixels) // 4]
+            return discord.Colour.from_rgb(*pick)
+        except Exception:
+            return None
 
     @app_commands.command(name="graph", description="Graph a profile stat over time")
     @app_commands.describe(stat_type="The stat to graph", user="The user to graph")

@@ -12,20 +12,34 @@ from discord.ext import commands
 
 from bot.config import BOT_COLOR, ICONS, LOADING_ICON, NP_REFRESH_INTERVAL
 from bot.music.embeds import (
-    build_nowplaying,
+    build_info_view,
+    build_controls_view,
     build_queue_ended,
     build_queued_small,
     build_stopped,
 )
 from bot.music.player import GuildPlayer
-from bot.music.views import NowPlayingView
-from bot.utils import extract_yt_id, find_urls, format_time
+from bot.music.views import build_nowplaying_buttons
+from bot.utils import extract_yt_id, find_urls, format_time, truncate
 
 if TYPE_CHECKING:
     from bot.data import DataManager
     from bot.music.youtube import YouTubeService
 
 log = logging.getLogger(__name__)
+
+
+def _extract_component_text(components) -> str:
+    """Recursively extract text content from Components V2 structures."""
+    texts = []
+    for comp in components:
+        if hasattr(comp, "content"):
+            texts.append(comp.content)
+        if hasattr(comp, "children"):
+            texts.append(_extract_component_text(comp.children))
+        if hasattr(comp, "components"):
+            texts.append(_extract_component_text(comp.components))
+    return " ".join(texts)
 
 
 class MusicCog(commands.Cog):
@@ -43,15 +57,13 @@ class MusicCog(commands.Cog):
             self.players[guild_id].channel = channel
         return self.players[guild_id]
 
-    def _build_view(self, player: GuildPlayer) -> NowPlayingView:
-        liked = False
-        if player.guild_id in self.data.playlists:
-            liked_list = self.data.playlists[player.guild_id].get("liked", [])
-            liked = player.current in liked_list
+    def _build_buttons(self, player: GuildPlayer) -> list:
+        playlists = self.data.playlists.get(player.guild_id, {})
+        liked = player.current in playlists.get("liked", [])
+        disliked = player.current in playlists.get("disliked", [])
 
-        lang = self.data.get_lang(player.guild_id)
-        return NowPlayingView(
-            player, liked, lang,
+        return build_nowplaying_buttons(
+            player, liked, disliked,
             on_like=self._make_like_cb(player),
             on_back=self._make_back_cb(player),
             on_pause=self._make_pause_cb(player),
@@ -64,12 +76,24 @@ class MusicCog(commands.Cog):
             on_stop=self._make_stop_cb(player),
         )
 
+    def _build_info(self, player: GuildPlayer):
+        lang = self.data.get_lang(player.guild_id)
+        return build_info_view(player, self.yt.cache, lang)
+
+    def _build_controls(self, player: GuildPlayer):
+        buttons = self._build_buttons(player)
+        lang = self.data.get_lang(player.guild_id)
+        return build_controls_view(player, self.yt.cache, lang, buttons)
+
     # --- Slash Commands ---
 
     @app_commands.command(name="play", description="Play a song or playlist from YouTube")
     @app_commands.describe(search="YouTube URL or search query")
     async def play(self, interaction: discord.Interaction, search: str = None) -> None:
-        await interaction.response.defer()
+        try:
+            await interaction.response.defer()
+        except discord.NotFound:
+            return  # Interaction expired (e.g. during startup sync)
         await self._play_sys(interaction.guild, interaction.channel, None, interaction.user, search, respond=interaction)
 
     @app_commands.command(name="stop", description="Stop playback and disconnect")
@@ -255,6 +279,8 @@ class MusicCog(commands.Cog):
             if video_id is None:
                 if playlist is None:
                     playlist = self._search_to_playlist(search, guild.id)
+                    if playlist:
+                        log.info("Playlist from search_to_playlist: %s (from search=%r)", playlist[:5], search[:100] if search else search)
 
                 if playlist is not None:
                     if not player.queue:
@@ -349,7 +375,14 @@ class MusicCog(commands.Cog):
             except Exception:
                 msg = reference
 
-        urls = find_urls(msg.content) if hasattr(msg, "content") else []
+        # Extract URLs from message content, embeds, or Components V2 text
+        text_to_search = ""
+        if hasattr(msg, "content") and msg.content:
+            text_to_search = msg.content
+        if hasattr(msg, "components") and msg.components:
+            text_to_search += " " + _extract_component_text(msg.components)
+
+        urls = find_urls(text_to_search)
         if urls:
             url = urls[0]
             if "youtube" in url and "list=" in url:
@@ -379,17 +412,27 @@ class MusicCog(commands.Cog):
     def _search_to_playlist(self, search: str | None, guild_id: int) -> list[str] | None:
         if search is None:
             return None
+        # Match bracket-delimited lists like [song1, url, song2]
+        # Each item can be a video ID, URL, or search query — resolved later
         if search.startswith("[") and search.endswith("]"):
-            return search.strip("[]").split(", ")
+            items = [s.strip() for s in search[1:-1].split(",") if s.strip()]
+            # Extract YouTube IDs from URLs, leave search queries as-is
+            resolved = []
+            for item in items:
+                yt_id = extract_yt_id(item)
+                resolved.append(yt_id if yt_id != item or len(item) == 11 else item)
+            if resolved:
+                return resolved
         if search in self.data.playlists.get(guild_id, {}):
             return self.data.playlists[guild_id][search].get("songs", [])
         return None
 
     async def _queue_playlist(self, channel, player, playlist_ids: list[str], lang) -> None:
-        """Fetch and queue a list of video IDs concurrently, updating the embed per-song."""
+        """Fetch and queue a list of items concurrently. Items can be video IDs or search queries."""
         from concurrent.futures import Future
         from bot.music.youtube import _pool
 
+        disliked = self._get_disliked(player.guild_id)
         total = len(playlist_ids)
         embed = discord.Embed(color=BOT_COLOR)
         embed.set_author(
@@ -398,39 +441,57 @@ class MusicCog(commands.Cog):
         )
         msg = await channel.send(embed=embed)
 
-        # Submit ALL fetches at once to the thread pool
-        futures: list[tuple[str, Future]] = [
-            (vid_id, _pool.submit(self.yt.fetch_info, vid_id))
-            for vid_id in playlist_ids
+        # Submit ALL fetches at once — search_and_fetch handles both IDs and queries
+        futures: list[tuple[int, str, Future]] = [
+            (i, item, _pool.submit(self.yt.search_and_fetch, item, disliked))
+            for i, item in enumerate(playlist_ids)
         ]
 
-        queued_songs: list[str] = []
+        # Pre-allocate slots to preserve original order
+        slots: list[str | None] = [None] * total
+        queued_display: list[str] = []  # ordered list for display
         total_time = 0
         first_thumb = None
+        queue_insert_base = len(player.queue)  # where this batch starts in the queue
 
-        # Poll futures, updating the embed each time a new song finishes
+        # Poll futures, inserting in order as they complete
         pending = list(futures)
+        failed = 0
+        changed = False
         while pending:
             still_pending = []
-            for vid_id, future in pending:
+            changed = False
+            for idx, item, future in pending:
                 if future.done():
                     try:
-                        if future.result():
-                            player.queue.append(vid_id)
-                            queued_songs.append(vid_id)
-                            total_time += self.yt.cache[vid_id].get("secs_length", 0)
-                            if first_thumb is None:
-                                first_thumb = self.yt.cache[vid_id].get("thumbnail", "")
+                        resolved_id = future.result()
+                        if resolved_id:
+                            slots[idx] = resolved_id
+                            changed = True
+                        else:
+                            failed += 1
+                            changed = True
+                            log.warning("No result for %s", item)
                     except Exception:
-                        log.warning("Failed to fetch info for %s", vid_id)
+                        failed += 1
+                        changed = True
+                        log.warning("Failed to fetch/search for %s", item)
                 else:
-                    still_pending.append((vid_id, future))
+                    still_pending.append((idx, item, future))
 
-            # Update embed if new songs were added this tick
-            count = len(queued_songs)
-            if count > 0:
+            if changed:
+                # Rebuild the queue portion in original order
+                ordered = [s for s in slots if s is not None]
+                del player.queue[queue_insert_base:]
+                player.queue.extend(ordered)
+
+                queued_display = list(ordered)
+                total_time = sum(self.yt.cache.get(v, {}).get("secs_length", 0) for v in ordered)
+                if not first_thumb and ordered:
+                    first_thumb = self.yt.cache.get(ordered[0], {}).get("thumbnail", "")
+
                 progress = self._build_queue_progress(
-                    lang, queued_songs, total, total_time, first_thumb, done=not still_pending,
+                    lang, queued_display, total, total_time, first_thumb, done=not still_pending,
                 )
                 try:
                     await msg.edit(embed=progress)
@@ -463,14 +524,12 @@ class MusicCog(commands.Cog):
         # Two-column layout matching the queue embed: song names | durations
         visible = songs[-15:] if len(songs) > 15 else songs
         start_num = len(songs) - len(visible) + 1
-        chr_per_row = 40
         names_col = ""
         dur_col = ""
         for i, vid_id in enumerate(visible):
             vid = self.yt.cache.get(vid_id, {})
-            name = vid.get("title", "Unknown")
-            truncated = name[:chr_per_row] + ("..." if len(name) > chr_per_row else "")
-            names_col += f"**{start_num + i}** {truncated}\n"
+            name = truncate(vid.get("title", "Unknown"))
+            names_col += f"**{start_num + i}** {name}\n"
             dur_col += format_time(vid.get("secs_length", 0)) + "\n"
 
         if names_col:
@@ -565,15 +624,14 @@ class MusicCog(commands.Cog):
     # --- Display ---
 
     async def _send_display(self, player: GuildPlayer) -> None:
-        embeds = build_nowplaying(player, self.yt.cache, self.data.get_lang(player.guild_id))
-        if not embeds:
+        info = self._build_info(player)
+        controls = self._build_controls(player)
+        if not info or not controls:
             return
-        view = self._build_view(player)
         for attempt in range(3):
             try:
-                player.thumbnail_msg = await player.channel.send(embed=embeds[1])
-                player.nowplaying_msg = await player.channel.send(embed=embeds[0])
-                player.button_msg = await player.channel.send(embed=embeds[2], view=view)
+                player.display_msg = await player.channel.send(view=info)
+                player.controls_msg = await player.channel.send(view=controls)
                 return
             except discord.DiscordServerError:
                 if attempt < 2:
@@ -581,53 +639,56 @@ class MusicCog(commands.Cog):
                 else:
                     log.error("Failed to send now-playing display after 3 attempts")
 
-    async def _update_display(self, player: GuildPlayer) -> None:
-        embeds = build_nowplaying(player, self.yt.cache, self.data.get_lang(player.guild_id))
-        if not embeds:
+    async def _update_info(self, player: GuildPlayer) -> None:
+        """Update the info container (every second). Never touches buttons."""
+        info = self._build_info(player)
+        if not info or not player.display_msg:
             return
         try:
-            if player.thumbnail_msg:
-                await player.thumbnail_msg.edit(embed=embeds[1])
-            if player.button_msg:
-                await player.button_msg.edit(embed=embeds[2])
-        except discord.NotFound:
+            await player.display_msg.edit(view=info)
+        except (discord.NotFound, discord.HTTPException):
             pass
+
+    async def _update_controls(self, player: GuildPlayer) -> None:
+        """Update the controls container. Only on song change or user action."""
+        controls = self._build_controls(player)
+        if not controls or not player.controls_msg:
+            return
+        try:
+            await player.controls_msg.edit(view=controls)
+        except (discord.NotFound, discord.HTTPException):
+            pass
+
+    async def _update_display(self, player: GuildPlayer) -> None:
+        """Update both (song change)."""
+        await self._update_info(player)
+        await self._update_controls(player)
 
     async def _refresh_display(self, player: GuildPlayer, new_channel=None) -> None:
         if new_channel:
             player.channel = new_channel
-        embeds = build_nowplaying(player, self.yt.cache, self.data.get_lang(player.guild_id))
-        if not embeds:
-            return
-        view = self._build_view(player)
-
-        for msg in (player.thumbnail_msg, player.nowplaying_msg, player.button_msg):
+        for msg in (player.display_msg, player.controls_msg):
             if msg:
                 try:
                     await msg.delete()
                 except discord.NotFound:
                     pass
-
-        player.thumbnail_msg = await player.channel.send(embed=embeds[1])
-        player.nowplaying_msg = await player.channel.send(embed=embeds[0])
-        player.button_msg = await player.channel.send(embed=embeds[2], view=view)
+        await self._send_display(player)
 
     # --- Update loop ---
 
     async def _update_loop(self, player: GuildPlayer) -> None:
+        ticks = 0
         while True:
-            await asyncio.sleep(1)
             try:
                 if player.paused or player.processing or not player.queue:
+                    await asyncio.sleep(1)
                     continue
 
+                ticks += 1
+
                 if player.is_playing:
-                    embeds = build_nowplaying(player, self.yt.cache, self.data.get_lang(player.guild_id))
-                    if embeds and player.nowplaying_msg:
-                        try:
-                            await player.nowplaying_msg.edit(embed=embeds[0])
-                        except discord.NotFound:
-                            pass
+                    await self._update_info(player)
                 else:
                     ended = await self._check_song_ended(player)
                     if not ended and not player.refetch_tried:
@@ -642,15 +703,16 @@ class MusicCog(commands.Cog):
                         finally:
                             player.refetch_tried = True
 
-                player.update_count += 1
-                if player.update_count >= NP_REFRESH_INTERVAL:
-                    player.update_count = 0
+                if ticks >= NP_REFRESH_INTERVAL:
+                    ticks = 0
                     await self._refresh_display(player)
 
             except asyncio.CancelledError:
                 return
             except Exception:
                 log.error("Update loop error", exc_info=True)
+
+            await asyncio.sleep(1)
 
     async def _check_song_ended(self, player: GuildPlayer) -> bool:
         if not player.queue:
@@ -688,6 +750,17 @@ class MusicCog(commands.Cog):
         """Check if a player reference is stale (bot restarted or stopped)."""
         return player.guild_id not in self.players or self.players[player.guild_id] is not player
 
+    async def _respond_with_controls(self, interaction: discord.Interaction, player: GuildPlayer) -> None:
+        """Respond to interaction by editing the controls container."""
+        controls = self._build_controls(player)
+        if controls:
+            try:
+                await interaction.response.edit_message(view=controls)
+            except discord.HTTPException:
+                await interaction.response.defer()
+        else:
+            await interaction.response.defer()
+
     def _make_like_cb(self, player: GuildPlayer):
         async def callback(interaction: discord.Interaction):
             if self._is_stale(player) or not player.current:
@@ -702,12 +775,7 @@ class MusicCog(commands.Cog):
                 liked.remove(current)
             else:
                 liked.append(current)
-            embeds = build_nowplaying(player, self.yt.cache, self.data.get_lang(player.guild_id))
-            view = self._build_view(player)
-            if embeds:
-                await interaction.response.edit_message(embed=embeds[2], view=view)
-            else:
-                await interaction.response.defer()
+            await self._respond_with_controls(interaction, player)
         return callback
 
     def _make_dislike_cb(self, player: GuildPlayer):
@@ -730,27 +798,29 @@ class MusicCog(commands.Cog):
             player.queue = [v for v in player.queue if v != current]
             # Skip to next
             await interaction.response.defer()
-            if player.queue:
-                source = self.yt.cache.get(player.queue[0], {}).get("source", "")
-                await player.play(source)
-                await self._update_display(player)
-            elif player.autoplay:
-                if not player.recommended_vid:
-                    self.yt.find_autoplay(player, disliked=self._get_disliked(guild_id))
-                if player.recommended_vid:
-                    rec = player.recommended_vid
-                    player.recommended_vid = None
-                    await self._play_sys(discord.Object(id=guild_id), player.channel, autoplay_id=rec)
+            try:
+                if player.queue:
+                    source = self.yt.cache.get(player.queue[0], {}).get("source", "")
+                    await player.play(source)
+                elif player.autoplay:
+                    if not player.recommended_vid:
+                        self.yt.find_autoplay(player, disliked=self._get_disliked(guild_id))
+                    if player.recommended_vid:
+                        rec = player.recommended_vid
+                        player.recommended_vid = None
+                        await self._play_sys(discord.Object(id=guild_id), player.channel, autoplay_id=rec)
+                    else:
+                        lang = self.data.get_lang(guild_id)
+                        await player.disconnect()
+                        player.cancel_update_task()
+                        await player.channel.send(embed=build_queue_ended(lang))
                 else:
                     lang = self.data.get_lang(guild_id)
                     await player.disconnect()
                     player.cancel_update_task()
                     await player.channel.send(embed=build_queue_ended(lang))
-            else:
-                lang = self.data.get_lang(guild_id)
-                await player.disconnect()
-                player.cancel_update_task()
-                await player.channel.send(embed=build_queue_ended(lang))
+            except Exception:
+                log.error("Button callback error", exc_info=True)
         return callback
 
     def _make_back_cb(self, player: GuildPlayer):
@@ -760,14 +830,18 @@ class MusicCog(commands.Cog):
                 return
             lang = self.data.get_lang(interaction.guild.id)
             if player.past_queue:
-                await interaction.response.defer()
-                if player.paused:
-                    player.resume()
-                cur = player.queue[0]
-                player.queue.insert(1, player.past_queue[-1])
-                await self._play_next(player)
-                player.queue.insert(1, cur)
-                del player.past_queue[-2:]
+                player.interaction_active = True
+                try:
+                    await interaction.response.defer()
+                    if player.paused:
+                        player.resume()
+                    cur = player.queue[0]
+                    player.queue.insert(1, player.past_queue[-1])
+                    await self._play_next(player)
+                    player.queue.insert(1, cur)
+                    del player.past_queue[-2:]
+                finally:
+                    player.interaction_active = False
             else:
                 await interaction.response.send_message(lang["error"]["can_not_back"], ephemeral=True)
         return callback
@@ -781,12 +855,7 @@ class MusicCog(commands.Cog):
                 player.pause()
             else:
                 player.resume()
-            embeds = build_nowplaying(player, self.yt.cache, self.data.get_lang(player.guild_id))
-            view = self._build_view(player)
-            if embeds:
-                await interaction.response.edit_message(embed=embeds[2], view=view)
-            else:
-                await interaction.response.defer()
+            await self._respond_with_controls(interaction, player)
         return callback
 
     def _make_skip_cb(self, player: GuildPlayer):
@@ -796,10 +865,14 @@ class MusicCog(commands.Cog):
                 return
             lang = self.data.get_lang(interaction.guild.id)
             if len(player.queue) > 1 or player.autoplay:
-                await interaction.response.defer()
-                if player.paused:
-                    player.resume()
-                await self._play_next(player)
+                player.interaction_active = True
+                try:
+                    await interaction.response.defer()
+                    if player.paused:
+                        player.resume()
+                    await self._play_next(player)
+                finally:
+                    player.interaction_active = False
             else:
                 await interaction.response.send_message(lang["error"]["can_not_skip"], ephemeral=True)
         return callback
@@ -810,12 +883,7 @@ class MusicCog(commands.Cog):
                 await interaction.response.send_message(self.data.get_lang(interaction.guild.id)["error"]["session_expired"], ephemeral=True)
                 return
             player.show_queue = not player.show_queue
-            embeds = build_nowplaying(player, self.yt.cache, self.data.get_lang(player.guild_id))
-            view = self._build_view(player)
-            if embeds:
-                await interaction.response.edit_message(embed=embeds[2], view=view)
-            else:
-                await interaction.response.defer()
+            await self._respond_with_controls(interaction, player)
         return callback
 
     def _make_stop_cb(self, player: GuildPlayer):
@@ -824,9 +892,12 @@ class MusicCog(commands.Cog):
                 await interaction.response.send_message(self.data.get_lang(interaction.guild.id)["error"]["session_expired"], ephemeral=True)
                 return
             await interaction.response.defer()
-            lang = self.data.get_lang(interaction.guild.id)
-            await self._stop_player(player)
-            await interaction.followup.send(embed=build_stopped(lang))
+            try:
+                lang = self.data.get_lang(interaction.guild.id)
+                await self._stop_player(player)
+                await interaction.followup.send(embed=build_stopped(lang))
+            except Exception:
+                log.error("Button callback error", exc_info=True)
         return callback
 
     def _make_loop_cb(self, player: GuildPlayer):
@@ -835,12 +906,7 @@ class MusicCog(commands.Cog):
                 await interaction.response.send_message(self.data.get_lang(interaction.guild.id)["error"]["session_expired"], ephemeral=True)
                 return
             player.looping = not player.looping
-            embeds = build_nowplaying(player, self.yt.cache, self.data.get_lang(player.guild_id))
-            view = self._build_view(player)
-            if embeds:
-                await interaction.response.edit_message(embed=embeds[2], view=view)
-            else:
-                await interaction.response.defer()
+            await self._respond_with_controls(interaction, player)
         return callback
 
     def _make_shuffle_cb(self, player: GuildPlayer):
@@ -865,12 +931,7 @@ class MusicCog(commands.Cog):
                     player.queue = restored
                 player.shuffle = False
                 player.original_queue = None
-            embeds = build_nowplaying(player, self.yt.cache, self.data.get_lang(player.guild_id))
-            view = self._build_view(player)
-            if embeds:
-                await interaction.response.edit_message(embed=embeds[2], view=view)
-            else:
-                await interaction.response.defer()
+            await self._respond_with_controls(interaction, player)
         return callback
 
     def _make_autoplay_cb(self, player: GuildPlayer):
@@ -879,12 +940,7 @@ class MusicCog(commands.Cog):
                 await interaction.response.send_message(self.data.get_lang(interaction.guild.id)["error"]["session_expired"], ephemeral=True)
                 return
             player.autoplay = not player.autoplay
-            embeds = build_nowplaying(player, self.yt.cache, self.data.get_lang(player.guild_id))
-            view = self._build_view(player)
-            if embeds:
-                await interaction.response.edit_message(embed=embeds[2], view=view)
-            else:
-                await interaction.response.defer()
+            await self._respond_with_controls(interaction, player)
         return callback
 
 

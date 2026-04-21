@@ -37,10 +37,9 @@ class GuildPlayer:
     start_time: datetime = field(default_factory=datetime.now)
     pause_time: datetime | None = None
 
-    # Discord messages for the now-playing display
-    thumbnail_msg: discord.Message | None = None
-    nowplaying_msg: discord.Message | None = None
-    button_msg: discord.Message | None = None
+    # Display: info container (updates every second) + controls container (buttons, only on action)
+    display_msg: discord.Message | None = None
+    controls_msg: discord.Message | None = None
 
     # Update loop
     update_task: asyncio.Task | None = None

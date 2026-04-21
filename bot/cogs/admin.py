@@ -75,6 +75,16 @@ class AdminCog(commands.Cog):
         await interaction.response.send_message("Shutting down...")
         await self.bot.close()
 
+    @app_commands.command(name="restart", description="Restart the bot")
+    async def restart_cmd(self, interaction: discord.Interaction) -> None:
+        if not _is_admin(interaction):
+            await interaction.response.send_message(ADMIN_DENIED, ephemeral=True)
+            return
+        await interaction.response.send_message("Restarting...")
+        from main import request_restart
+        request_restart()
+        await self.bot.close()
+
     @app_commands.command(name="say", description="Send a message as the bot")
     @app_commands.describe(message="The message to send")
     async def say(self, interaction: discord.Interaction, message: str) -> None:

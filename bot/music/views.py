@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING, Callable
 
 import discord
-from discord.ui import Button, View
+from discord.ui import ActionRow, Button
 
 from bot.config import EMOJIS
 
@@ -14,73 +14,66 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-class NowPlayingView(View):
-    """Interactive button controls for the now-playing display."""
+def build_nowplaying_buttons(
+    player: GuildPlayer,
+    liked: bool,
+    disliked: bool,
+    *,
+    on_like: Callable,
+    on_back: Callable,
+    on_pause: Callable,
+    on_skip: Callable,
+    on_toggle_queue: Callable,
+    on_dislike: Callable,
+    on_loop: Callable,
+    on_shuffle: Callable,
+    on_autoplay: Callable,
+    on_stop: Callable,
+) -> list[ActionRow]:
+    """Build button ActionRows for the now-playing container."""
 
-    def __init__(
-        self,
-        player: GuildPlayer,
-        liked: bool,
-        lang: dict,
-        *,
-        on_like: Callable,
-        on_back: Callable,
-        on_pause: Callable,
-        on_skip: Callable,
-        on_toggle_queue: Callable,
-        on_dislike: Callable,
-        on_loop: Callable,
-        on_shuffle: Callable,
-        on_autoplay: Callable,
-        on_stop: Callable,
-    ) -> None:
-        super().__init__(timeout=None)
+    # Row 0: like, back, pause, skip, expand/collapse
+    like_emoji = EMOJIS["like_on"] if liked else EMOJIS["like_off"]
+    like_btn = Button(emoji=like_emoji)
+    like_btn.callback = on_like
 
-        # Row 0: like, back, pause, skip, expand/collapse
-        like_emoji = EMOJIS["like"] if liked else EMOJIS["not_like"]
-        btn = Button(emoji=like_emoji, row=0)
-        btn.callback = on_like
-        self.add_item(btn)
+    back_btn = Button(emoji=EMOJIS["back"])
+    back_btn.callback = on_back
 
-        btn = Button(emoji=EMOJIS["back"], row=0)
-        btn.callback = on_back
-        self.add_item(btn)
+    pause_emoji = EMOJIS["play"] if player.paused else EMOJIS["pause"]
+    pause_btn = Button(emoji=pause_emoji)
+    pause_btn.callback = on_pause
 
-        pause_emoji = EMOJIS["play"] if player.paused else EMOJIS["pause"]
-        btn = Button(emoji=pause_emoji, row=0)
-        btn.callback = on_pause
-        self.add_item(btn)
+    skip_btn = Button(emoji=EMOJIS["skip"])
+    skip_btn.callback = on_skip
 
-        btn = Button(emoji=EMOJIS["skip"], row=0)
-        btn.callback = on_skip
-        self.add_item(btn)
+    queue_emoji = EMOJIS["collapse"] if player.show_queue else EMOJIS["extend"]
+    queue_btn = Button(emoji=queue_emoji)
+    queue_btn.callback = on_toggle_queue
 
-        queue_emoji = EMOJIS["collapse"] if player.show_queue else EMOJIS["extend"]
-        btn = Button(emoji=queue_emoji, row=0)
-        btn.callback = on_toggle_queue
-        self.add_item(btn)
+    rows = [ActionRow(like_btn, back_btn, pause_btn, skip_btn, queue_btn)]
 
-        # Row 1 (only when expanded): dislike, loop, shuffle, autoplay, stop
-        if player.show_queue:
-            btn = Button(emoji=EMOJIS["downvote"], row=1)
-            btn.callback = on_dislike
-            self.add_item(btn)
+    # Row 1 (only when expanded): dislike, loop, shuffle, autoplay, stop
+    if player.show_queue:
+        dislike_emoji = EMOJIS["dislike_on"] if disliked else EMOJIS["dislike_off"]
+        dislike_btn = Button(emoji=dislike_emoji)
+        dislike_btn.callback = on_dislike
 
-            loop_style = discord.ButtonStyle.primary if player.looping else discord.ButtonStyle.secondary
-            btn = Button(emoji="\U0001f501", style=loop_style, row=1)
-            btn.callback = on_loop
-            self.add_item(btn)
+        loop_emoji = EMOJIS["loop_on"] if player.looping else EMOJIS["loop_off"]
+        loop_btn = Button(emoji=loop_emoji)
+        loop_btn.callback = on_loop
 
-            shuffle_style = discord.ButtonStyle.primary if player.shuffle else discord.ButtonStyle.secondary
-            btn = Button(emoji="\U0001f500", style=shuffle_style, row=1)
-            btn.callback = on_shuffle
-            self.add_item(btn)
+        shuffle_emoji = EMOJIS["shuffle_on"] if player.shuffle else EMOJIS["shuffle_off"]
+        shuffle_btn = Button(emoji=shuffle_emoji)
+        shuffle_btn.callback = on_shuffle
 
-            autoplay_style = discord.ButtonStyle.primary if player.autoplay else discord.ButtonStyle.secondary
-            btn = Button(emoji="\u25b6\ufe0f", style=autoplay_style, row=1)
-            btn.callback = on_autoplay
-            self.add_item(btn)
+        autoplay_emoji = EMOJIS["autoplay_on"] if player.autoplay else EMOJIS["autoplay_off"]
+        autoplay_btn = Button(emoji=autoplay_emoji)
+        autoplay_btn.callback = on_autoplay
 
-            btn = Button(emoji=EMOJIS["delete"], row=1)
-            btn.callback = on_stop
-            self.add_item(btn)
+        stop_btn = Button(emoji=EMOJIS["delete"])
+        stop_btn.callback = on_stop
+
+        rows.append(ActionRow(dislike_btn, loop_btn, shuffle_btn, autoplay_btn, stop_btn))
+
+    return rows
